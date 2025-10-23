@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestion de Bar - Gabon</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Sidebar Navigation -->
+    <nav class="sidebar">
+        <div class="sidebar-header">
+            <h1>🍹 Bar Manager</h1>
+            <p class="subtitle">Gabon</p>
+        </div>
+        <ul class="nav-menu">
+            <li><a href="#" class="nav-link active" data-page="dashboard">
+                <span class="icon">📊</span>
+                <span>Tableau de bord</span>
+            </a></li>
+            <li><a href="#" class="nav-link" data-page="articles">
+                <span class="icon">📦</span>
+                <span>Articles</span>
+            </a></li>
+            <li><a href="#" class="nav-link" data-page="tables">
+                <span class="icon">🪑</span>
+                <span>Tables</span>
+            </a></li>
+            <li><a href="#" class="nav-link" data-page="payments">
+                <span class="icon">💰</span>
+                <span>Paiements</span>
+            </a></li>
+        </ul>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Dashboard Page -->
+        <div id="dashboard-page" class="page active">
+            <header class="page-header">
+                <h2>Tableau de bord</h2>
+                <p class="page-subtitle">Vue d'ensemble de votre activité</p>
+            </header>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon">💵</div>
+                    <div class="stat-content">
+                        <p class="stat-label">Ventes du jour</p>
+                        <p class="stat-value" id="daily-sales">0 FCFA</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">🪑</div>
+                    <div class="stat-content">
+                        <p class="stat-label">Tables occupées</p>
+                        <p class="stat-value" id="occupied-tables">0/0</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">📦</div>
+                    <div class="stat-content">
+                        <p class="stat-label">Articles en stock</p>
+                        <p class="stat-value" id="total-articles">0</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">🎯</div>
+                    <div class="stat-content">
+                        <p class="stat-label">Commandes actives</p>
+                        <p class="stat-value" id="active-orders">0</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="recent-section">
+                <h3>Activité récente</h3>
+                <div class="recent-list" id="recent-activity">
+                    <p class="empty-state">Aucune activité récente</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Articles Page -->
+        <div id="articles-page" class="page">
+            <header class="page-header">
+                <div>
+                    <h2>Gestion des articles</h2>
+                    <p class="page-subtitle">Gérez votre inventaire</p>
+                </div>
+                <button class="btn btn-primary" id="add-article-btn">+ Ajouter un article</button>
+            </header>
+
+            <div class="articles-grid" id="articles-list">
+                <p class="empty-state">Aucun article. Cliquez sur "Ajouter un article" pour commencer.</p>
+            </div>
+        </div>
+
+        <!-- Tables Page -->
+        <div id="tables-page" class="page">
+            <header class="page-header">
+                <div>
+                    <h2>Gestion des tables</h2>
+                    <p class="page-subtitle">Gérez les commandes par table</p>
+                </div>
+                <button class="btn btn-primary" id="add-table-btn">+ Ajouter une table</button>
+            </header>
+
+            <div class="tables-grid" id="tables-list">
+                <p class="empty-state">Aucune table. Cliquez sur "Ajouter une table" pour commencer.</p>
+            </div>
+        </div>
+
+        <!-- Payments Page -->
+        <div id="payments-page" class="page">
+            <header class="page-header">
+                <h2>Historique des paiements</h2>
+                <p class="page-subtitle">Consultez tous les paiements effectués</p>
+            </header>
+
+            <div class="payments-container">
+                <div class="payments-stats">
+                    <div class="payment-stat">
+                        <p class="payment-stat-label">Total aujourd'hui</p>
+                        <p class="payment-stat-value" id="today-total">0 FCFA</p>
+                    </div>
+                    <div class="payment-stat">
+                        <p class="payment-stat-label">Nombre de paiements</p>
+                        <p class="payment-stat-value" id="payment-count">0</p>
+                    </div>
+                </div>
+
+                <div class="payments-list" id="payments-list">
+                    <p class="empty-state">Aucun paiement enregistré</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal for Adding/Editing Article -->
+    <div id="article-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="article-modal-title">Ajouter un article</h3>
+                <button class="close-btn" id="close-article-modal">&times;</button>
+            </div>
+            <form id="article-form">
+                <div class="form-group">
+                    <label for="article-name">Nom de l'article</label>
+                    <input type="text" id="article-name" required>
+                </div>
+                <div class="form-group">
+                    <label for="article-price">Prix (FCFA)</label>
+                    <input type="number" id="article-price" min="0" required>
+                </div>
+                <div class="form-group">
+                    <label for="article-category">Catégorie</label>
+                    <select id="article-category" required>
+                        <option value="Boissons">Boissons</option>
+                        <option value="Bières">Bières</option>
+                        <option value="Vins">Vins</option>
+                        <option value="Spiritueux">Spiritueux</option>
+                        <option value="Snacks">Snacks</option>
+                        <option value="Plats">Plats</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="article-stock">Stock disponible</label>
+                    <input type="number" id="article-stock" min="0" required>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" id="cancel-article">Annuler</button>
+                    <button type="submit" class="btn btn-primary">Enregistrer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal for Adding Table -->
+    <div id="table-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Ajouter une table</h3>
+                <button class="close-btn" id="close-table-modal">&times;</button>
+            </div>
+            <form id="table-form">
+                <div class="form-group">
+                    <label for="table-number">Numéro de table</label>
+                    <input type="text" id="table-number" required>
+                </div>
+                <div class="form-group">
+                    <label for="table-capacity">Capacité (personnes)</label>
+                    <input type="number" id="table-capacity" min="1" value="4" required>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" id="cancel-table">Annuler</button>
+                    <button type="submit" class="btn btn-primary">Créer la table</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal for Table Orders -->
+    <div id="order-modal" class="modal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h3 id="order-modal-title">Commandes - Table</h3>
+                <button class="close-btn" id="close-order-modal">&times;</button>
+            </div>
+            <div class="order-content">
+                <div class="order-section">
+                    <h4>Ajouter des articles</h4>
+                    <div class="articles-select" id="order-articles-list"></div>
+                </div>
+                <div class="order-section">
+                    <h4>Commande actuelle</h4>
+                    <div class="current-order" id="current-order-list">
+                        <p class="empty-state">Aucun article dans la commande</p>
+                    </div>
+                    <div class="order-total">
+                        <strong>Total:</strong>
+                        <span id="order-total">0 FCFA</span>
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn btn-secondary" id="cancel-order">Fermer</button>
+                        <button type="button" class="btn btn-success" id="pay-order">💰 Payer</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
