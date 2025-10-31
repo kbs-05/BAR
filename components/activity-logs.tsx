@@ -4,8 +4,11 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Clock, Activity, Calendar, Filter } from "lucide-react"
+import { getData, addData, deleteData } from "@/lib/firestoreService"
 
+// ⚡ Typage strict
 interface ActivityLog {
+  id?: string
   role: string
   timestamp: string
   action: string
@@ -22,123 +25,103 @@ export default function ActivityLogs() {
   const [filter, setFilter] = useState<string>("all")
   const [employees, setEmployees] = useState<Employee[]>([])
 
+  // ⚡ Charger logs et employés depuis Firestore
+  const loadLogs = async () => {
+    try {
+      const data = await getData("activity_logs")
+      const sorted = data
+        .map((log: any) => ({
+          id: log.id,
+          role: log.role ?? "inconnu",
+          timestamp: log.timestamp ?? new Date().toISOString(),
+          action: log.action ?? "",
+          details: log.details ?? "",
+        }))
+        .sort((a: ActivityLog, b: ActivityLog) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+      setLogs(sorted)
+    } catch (error) {
+      console.error("Erreur chargement logs:", error)
+    }
+  }
+
+  const loadEmployees = async () => {
+    try {
+      const data = await getData("employees")
+      const mapped: Employee[] = data.map((emp: any) => ({
+        id: emp.id,
+        name: emp.name ?? "Nom inconnu",
+      }))
+      setEmployees(mapped)
+    } catch (error) {
+      console.error("Erreur chargement employés:", error)
+    }
+  }
+
   useEffect(() => {
     loadLogs()
     loadEmployees()
   }, [])
 
-  const loadLogs = () => {
-    const savedLogs = localStorage.getItem("activity_logs")
-    if (savedLogs) {
-      const parsedLogs = JSON.parse(savedLogs)
-      setLogs(parsedLogs.reverse())
+  // ⚡ Effacer tous les logs
+  const clearLogs = async () => {
+    if (!confirm("Êtes-vous sûr de vouloir effacer tous les logs ?")) return
+
+    try {
+      await Promise.all(logs.map(log => log.id ? deleteData("activity_logs", log.id) : Promise.resolve()))
+      setLogs([])
+    } catch (error) {
+      console.error("Erreur suppression logs:", error)
     }
   }
 
-  const loadEmployees = () => {
-    const stored = localStorage.getItem("bar_employees")
-    if (stored) {
-      setEmployees(JSON.parse(stored))
-    }
-  }
-
-  const filteredLogs = filter === "all" ? logs : logs.filter((log) => log.role === filter)
+  const filteredLogs = filter === "all" ? logs : logs.filter(log => log.role === filter)
 
   const getRoleName = (role: string) => {
     switch (role) {
-      case "patron":
-        return "Patron"
-      case "gerante1":
-        return "Gérante 1"
-      case "gerante2":
-        return "Gérante 2"
+      case "patron": return "Patron"
+      case "gerante1": return "Gérante 1"
+      case "gerante2": return "Gérante 2"
       default:
-        const employee = employees.find((e) => e.id === role)
-        return employee ? employee.name : role
+        const emp = employees.find(e => e.id === role)
+        return emp ? emp.name : role
     }
   }
 
   const getRoleColor = (role: string) => {
     switch (role) {
-      case "patron":
-        return "bg-accent text-accent-foreground"
-      case "gerante1":
-        return "bg-primary text-primary-foreground"
-      case "gerante2":
-        return "bg-secondary text-secondary-foreground"
-      default:
-        return "bg-muted text-muted-foreground"
+      case "patron": return "bg-accent text-accent-foreground"
+      case "gerante1": return "bg-primary text-primary-foreground"
+      case "gerante2": return "bg-secondary text-secondary-foreground"
+      default: return "bg-muted text-muted-foreground"
     }
   }
 
-  const formatDate = (timestamp: string) => {
-    const date = new Date(timestamp)
-    return date.toLocaleDateString("fr-FR", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    })
-  }
-
-  const formatTime = (timestamp: string) => {
-    const date = new Date(timestamp)
-    return date.toLocaleTimeString("fr-FR", {
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-    })
-  }
-
-  const clearLogs = () => {
-    if (confirm("Êtes-vous sûr de vouloir effacer tous les logs ?")) {
-      localStorage.setItem("activity_logs", "[]")
-      setLogs([])
-    }
-  }
+  const formatDate = (timestamp: string) => new Date(timestamp).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" })
+  const formatTime = (timestamp: string) => new Date(timestamp).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h2 className="text-2xl sm:text-3xl font-bold text-balance">Journal d'activité</h2>
           <p className="text-muted-foreground text-sm mt-1">Historique des connexions et actions</p>
         </div>
-        <Button onClick={clearLogs} variant="destructive" size="sm">
-          Effacer les logs
-        </Button>
+        <Button onClick={clearLogs} variant="destructive" size="sm">Effacer les logs</Button>
       </div>
 
+      {/* Filtres */}
       <div className="flex flex-wrap gap-2">
-        <Button
-          onClick={() => setFilter("all")}
-          variant={filter === "all" ? "default" : "outline"}
-          size="sm"
-          className="gap-2"
-        >
-          <Filter className="w-4 h-4" />
-          Tous
-        </Button>
-        <Button onClick={() => setFilter("patron")} variant={filter === "patron" ? "default" : "outline"} size="sm">
-          Patron
-        </Button>
-        <Button onClick={() => setFilter("gerante1")} variant={filter === "gerante1" ? "default" : "outline"} size="sm">
-          Gérante 1
-        </Button>
-        <Button onClick={() => setFilter("gerante2")} variant={filter === "gerante2" ? "default" : "outline"} size="sm">
-          Gérante 2
-        </Button>
-        {employees.map((employee) => (
-          <Button
-            key={employee.id}
-            onClick={() => setFilter(employee.name)}
-            variant={filter === employee.name ? "default" : "outline"}
-            size="sm"
-          >
-            {employee.name}
-          </Button>
+        <Button onClick={() => setFilter("all")} variant={filter === "all" ? "default" : "outline"} size="sm"><Filter className="w-4 h-4" /> Tous</Button>
+        <Button onClick={() => setFilter("patron")} variant={filter === "patron" ? "default" : "outline"} size="sm">Patron</Button>
+        <Button onClick={() => setFilter("gerante1")} variant={filter === "gerante1" ? "default" : "outline"} size="sm">Gérante 1</Button>
+        <Button onClick={() => setFilter("gerante2")} variant={filter === "gerante2" ? "default" : "outline"} size="sm">Gérante 2</Button>
+        {employees.map(emp => (
+          <Button key={emp.id} onClick={() => setFilter(emp.id)} variant={filter === emp.id ? "default" : "outline"} size="sm">{emp.name}</Button>
         ))}
       </div>
 
+      {/* Liste des logs */}
       <div className="grid gap-3">
         {filteredLogs.length === 0 ? (
           <Card className="p-8 text-center">
@@ -147,7 +130,7 @@ export default function ActivityLogs() {
           </Card>
         ) : (
           filteredLogs.map((log, index) => (
-            <Card key={index} className="p-4 hover:bg-accent/5 transition-colors">
+            <Card key={log.id || index} className="p-4 hover:bg-accent/5 transition-colors">
               <div className="flex flex-col sm:flex-row sm:items-center gap-3">
                 <div className={`px-3 py-1 rounded-full text-xs font-semibold ${getRoleColor(log.role)} w-fit`}>
                   {getRoleName(log.role)}
@@ -159,14 +142,8 @@ export default function ActivityLogs() {
                 </div>
 
                 <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
-                  <div className="flex items-center gap-1">
-                    <Calendar className="w-4 h-4" />
-                    <span>{formatDate(log.timestamp)}</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Clock className="w-4 h-4" />
-                    <span>{formatTime(log.timestamp)}</span>
-                  </div>
+                  <div className="flex items-center gap-1"><Calendar className="w-4 h-4" /><span>{formatDate(log.timestamp)}</span></div>
+                  <div className="flex items-center gap-1"><Clock className="w-4 h-4" /><span>{formatTime(log.timestamp)}</span></div>
                 </div>
               </div>
             </Card>

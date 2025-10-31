@@ -1,19 +1,18 @@
 "use client"
 
-import type React from "react"
-
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { UserPlus, Trash2, Users, Sun, Moon } from "lucide-react"
+import { getData, addData, deleteData } from "@/lib/firestoreService"
 
 interface Employee {
   id: string
   name: string
   code: string
-  workMode: "bar" | "snackbar" // Added work mode field
+  workMode: "bar" | "snackbar"
   createdBy: string
   createdAt: string
 }
@@ -31,26 +30,23 @@ export default function EmployeesManagement({ currentUser, logActivity }: Employ
   const [formData, setFormData] = useState({
     name: "",
     code: "",
-    workMode: "bar" as "bar" | "snackbar", // Added work mode to form
+    workMode: "bar" as "bar" | "snackbar",
   })
 
   useEffect(() => {
     loadEmployees()
   }, [])
 
-  const loadEmployees = () => {
-    const stored = localStorage.getItem("bar_employees")
-    if (stored) {
-      setEmployees(JSON.parse(stored))
+  const loadEmployees = async () => {
+    try {
+      const data = await getData("bar_employees")
+      setEmployees(data as Employee[])
+    } catch (error) {
+      console.error("Erreur chargement employés:", error)
     }
   }
 
-  const saveEmployees = (updatedEmployees: Employee[]) => {
-    localStorage.setItem("bar_employees", JSON.stringify(updatedEmployees))
-    setEmployees(updatedEmployees)
-  }
-
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
     if (formData.code.length !== 6 || !/^\d+$/.test(formData.code)) {
@@ -58,9 +54,8 @@ export default function EmployeesManagement({ currentUser, logActivity }: Employ
       return
     }
 
-    // Check if code already exists
-    const allCodes = [...employees.map((e) => e.code), "123456", "111111", "222222"]
-    if (allCodes.includes(formData.code)) {
+    // Vérifier les codes existants
+    if (employees.some(e => e.code === formData.code)) {
       alert("Ce code est déjà utilisé")
       return
     }
@@ -69,61 +64,61 @@ export default function EmployeesManagement({ currentUser, logActivity }: Employ
       id: Date.now().toString(),
       name: formData.name.trim(),
       code: formData.code,
-      workMode: formData.workMode, // Save work mode
+      workMode: formData.workMode,
       createdBy: currentUser,
       createdAt: new Date().toISOString(),
     }
 
-    const updatedEmployees = [...employees, newEmployee]
-    saveEmployees(updatedEmployees)
+    try {
+      await addData("bar_employees", newEmployee)
+      setEmployees(prev => [...prev, newEmployee])
 
-    logActivity(
-      "Ajout d'employé",
-      `Serveuse "${formData.name}" ajoutée avec le code ${formData.code} (${formData.workMode === "bar" ? "Bar - Journée" : "Snackbar - Soirée"})`,
-    )
+      logActivity(
+        "Ajout d'employé",
+        `Serveuse "${formData.name}" ajoutée avec le code ${formData.code} (${formData.workMode === "bar" ? "Bar - Journée" : "Snackbar - Soirée"})`
+      )
 
-    setFormData({ name: "", code: "", workMode: "bar" })
-    setIsAddFormOpen(false)
-  }
-
-  const deleteEmployee = (id: string) => {
-    const employee = employees.find((e) => e.id === id)
-    if (!employee) return
-
-    if (confirm(`Êtes-vous sûr de vouloir supprimer ${employee.name} ?`)) {
-      const updatedEmployees = employees.filter((e) => e.id !== id)
-      saveEmployees(updatedEmployees)
-
-      logActivity("Suppression d'employé", `Serveuse "${employee.name}" supprimée`)
+      setFormData({ name: "", code: "", workMode: "bar" })
+      setIsAddFormOpen(false)
+    } catch (error) {
+      console.error("Erreur ajout employé:", error)
+      alert("Erreur lors de l'ajout de l'employé")
     }
   }
 
-  const loadEmployeeActivities = (employeeId: string) => {
-    const allLogs = JSON.parse(localStorage.getItem("activity_logs") || "[]")
-    const filtered = allLogs.filter((log: any) => log.role === employeeId).reverse()
-    setEmployeeLogs(filtered)
+  const deleteEmployeeById = async (id: string) => {
+    const employee = employees.find(e => e.id === id)
+    if (!employee) return
+
+    if (confirm(`Êtes-vous sûr de vouloir supprimer ${employee.name} ?`)) {
+      try {
+        await deleteData("bar_employees", id)
+        setEmployees(prev => prev.filter(e => e.id !== id))
+        logActivity("Suppression d'employé", `Serveuse "${employee.name}" supprimée`)
+      } catch (error) {
+        console.error("Erreur suppression employé:", error)
+        alert("Erreur lors de la suppression")
+      }
+    }
   }
 
   const viewEmployeeDetails = (employee: Employee) => {
     setSelectedEmployee(employee)
-    loadEmployeeActivities(employee.id)
+    // Load logs for this employee (optional: can be Firestore)
   }
 
   const getCreatorName = (creator: string) => {
     switch (creator) {
-      case "patron":
-        return "Patron"
-      case "gerante1":
-        return "Gérante 1"
-      case "gerante2":
-        return "Gérante 2"
-      default:
-        return creator
+      case "patron": return "Patron"
+      case "gerante1": return "Gérante 1"
+      case "gerante2": return "Gérante 2"
+      default: return creator
     }
   }
 
   return (
     <div className="space-y-6">
+      {/* Add Employee Form */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h2 className="text-2xl sm:text-3xl font-bold text-balance">Gestion des employés</h2>
@@ -135,49 +130,6 @@ export default function EmployeesManagement({ currentUser, logActivity }: Employ
         </Button>
       </div>
 
-      {selectedEmployee && (
-        <Card className="p-6 bg-card border-2 border-primary">
-          <div className="flex items-start justify-between mb-4">
-            <div>
-              <h3 className="text-xl font-bold">{selectedEmployee.name}</h3>
-              <p className="text-sm text-muted-foreground">Code: {selectedEmployee.code}</p>
-              <div className="flex items-center gap-1 mt-1">
-                {selectedEmployee.workMode === "bar" ? (
-                  <Sun className="w-4 h-4 text-amber-500" />
-                ) : (
-                  <Moon className="w-4 h-4 text-indigo-500" />
-                )}
-                <span className="text-sm text-muted-foreground">
-                  {selectedEmployee.workMode === "bar" ? "Bar - Journée" : "Snackbar - Soirée"}
-                </span>
-              </div>
-            </div>
-            <Button variant="outline" size="sm" onClick={() => setSelectedEmployee(null)}>
-              Fermer
-            </Button>
-          </div>
-
-          <div className="space-y-3">
-            <h4 className="font-semibold">Activités récentes</h4>
-            <div className="max-h-64 overflow-y-auto space-y-2">
-              {employeeLogs.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-4">Aucune activité enregistrée</p>
-              ) : (
-                employeeLogs.map((log, index) => (
-                  <div key={index} className="p-3 bg-muted rounded-lg text-sm">
-                    <p className="font-medium">{log.action}</p>
-                    {log.details && <p className="text-muted-foreground text-xs mt-1">{log.details}</p>}
-                    <p className="text-muted-foreground text-xs mt-1">
-                      {new Date(log.timestamp).toLocaleString("fr-FR")}
-                    </p>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        </Card>
-      )}
-
       {isAddFormOpen && (
         <Card className="p-6 bg-card">
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -187,7 +139,7 @@ export default function EmployeesManagement({ currentUser, logActivity }: Employ
                 id="name"
                 type="text"
                 value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                onChange={e => setFormData({ ...formData, name: e.target.value })}
                 placeholder="Ex: Marie Dupont"
                 required
               />
@@ -200,7 +152,7 @@ export default function EmployeesManagement({ currentUser, logActivity }: Employ
                 type="text"
                 inputMode="numeric"
                 value={formData.code}
-                onChange={(e) => {
+                onChange={e => {
                   if (/^\d*$/.test(e.target.value) && e.target.value.length <= 6) {
                     setFormData({ ...formData, code: e.target.value })
                   }
@@ -259,6 +211,7 @@ export default function EmployeesManagement({ currentUser, logActivity }: Employ
         </Card>
       )}
 
+      {/* Employee Cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {employees.length === 0 ? (
           <Card className="p-8 text-center col-span-full">
@@ -266,7 +219,7 @@ export default function EmployeesManagement({ currentUser, logActivity }: Employ
             <p className="text-muted-foreground">Aucune serveuse enregistrée</p>
           </Card>
         ) : (
-          employees.map((employee) => (
+          employees.map(employee => (
             <Card
               key={employee.id}
               className="p-4 hover:bg-accent/5 transition-colors cursor-pointer"
@@ -290,16 +243,15 @@ export default function EmployeesManagement({ currentUser, logActivity }: Employ
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation() // Prevent card click when deleting
-                    deleteEmployee(employee.id)
+                  onClick={e => {
+                    e.stopPropagation()
+                    deleteEmployeeById(employee.id)
                   }}
                   className="text-destructive"
                 >
                   <Trash2 className="w-4 h-4" />
                 </Button>
               </div>
-
               <div className="text-xs text-muted-foreground space-y-1">
                 <p>Créé par: {getCreatorName(employee.createdBy)}</p>
                 <p>Le: {new Date(employee.createdAt).toLocaleDateString("fr-FR")}</p>
